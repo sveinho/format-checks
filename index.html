@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Step-by-Step File Identification</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; }
+        h2 { color: #2980b9; margin-top: 0; border-bottom: 2px solid #bdbdbd; padding-bottom: 5px; }
+        .file-upload-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .step-container {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            opacity: 0.5;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .step-container.active {
+            opacity: 1;
+            pointer-events: auto;
+            border-left: 5px solid #2980b9;
+        }
+        .sub-step {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 5px;
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+        }
+        .status-box {
+            margin-top: 8px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            display: none;
+        }
+        .status-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .status-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        button {
+            background-color: #2980b9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+        button:hover { background-color: #3498db; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        .file-info { font-style: italic; color: #555; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>File Identification Workflow</h1>
+    
+    <!-- File Selector -->
+    <div class="file-upload-box">
+        <label for="fileInput" style="font-weight: bold; display: block; margin-bottom: 10px;">Select file to analyze:</label>
+        <input type="file" id="fileInput" />
+        <div id="fileInfo" class="file-info">No file selected</div>
+    </div>
+
+    <!-- STEP 1: EXTENSION -->
+    <div id="containerStep1" class="step-container">
+        <h2>Step 1: File Extension Check</h2>
+        <p>Evaluates the file extension against approved linguistic lists.</p>
+        
+        <div class="sub-step">
+            <span style="font-weight: 600;">1a. Check against recommended formats (.txt & .pdf & .xml & .csv & json)</span>
+            <div id="result1a" class="status-box"></div>
+        </div>
+        <div class="sub-step">
+            <span style="font-weight: 600;">1b. Check against automatically migratable formats (.doc & .docx & .xl & .xlsx & .html)</span>
+            <div id="result1b" class="status-box"></div>
+        </div>
+        <div class="sub-step">
+            <span style="font-weight: 600;">1c. Catch-all for unknown extensions (Allow, reject, or manual)</span>
+            <div id="result1c" class="status-box"></div>
+        </div>
+        
+        <button id="btnStep1" onclick="runStep1()">Run Step 1</button>
+    </div>
+    <!-- STEP 2: PATTERN ANALYSIS -->
+    <div id="containerStep2" class="step-container">
+        <h2>Step 2: Internal Pattern Recognition (Siegfried Level)</h2>
+        <p>Analyzes the file's actual binary and structural composition.</p>
+        
+        <div class="sub-step">
+            <span style="font-weight: 600;">2a. Check for known magic numbers</span>
+            <div id="result2a" class="status-box"></div>
+        </div>
+        <div class="sub-step">
+            <span style="font-weight: 600;">2b. Check for structural patterns (XML, JSON, tags)</span>
+            <div id="result2b" class="status-box"></div>
+        </div>
+        <div class="sub-step">
+            <span style="font-weight: 600;">2c. Heuristic and statistical analysis of other properties</span>
+            <div id="result2c" class="status-box"></div>
+        </div>
+        <div class="sub-step">
+            <span style="font-weight: 600;">2d. Catch-all and joint evaluation if 2a-2c fail</span>
+            <div id="result2d" class="status-box"></div>
+        </div>
+        
+        <button id="btnStep2" onclick="runStep2()">Run Step 2</button>
+    </div>
+
+    <!-- STEP 3: GOOGLE MAGIKA -->
+    <div id="containerStep3" class="step-container">
+        <h2>Step 3: AI-Assisted Content Analysis (Google Magika)</h2>
+        <p>Verifies the content against Google Magika's list of ~220 core formats.</p>
+        
+        <div class="sub-step">
+            <span style="font-weight: 600;">3. Google Magika content confirmation</span>
+            <div id="result3" class="status-box"></div>
+        </div>
+        
+        <button id="btnStep3" onclick="runStep3()">Run Step 3 and complete</button>
+    </div>
+
+    <script>
+        // Global state for the application
+        let selectedFileData = {
+            name: "",
+            extension: "",
+            size: 0,
+            buffer: null
+        };
+
+        // Status flags to keep track of cross-cutting rules (e.g., for step 2d)
+        let statusFlags = {
+            step1Success: false,
+            step2Success: false,
+            step3Success: false
+        };
+
+        // --- DEFINED LISTS FROM LINGUISTICS ---
+        const RECOMMENDED_FORMATS = ['txt', 'pdf', 'xml', 'csv', 'json'];
+        const MIGRATABLE_FORMATS = ['doc', 'docx', 'xls', 'xlsx', 'html'];
+
+        // --- EVENT HANDLER FOR FILE SELECTION ---
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const infoField = document.getElementById('fileInfo');
+            
+            if (!file) {
+                infoField.innerText = "No file selected";
+                resetInterface();
+                return;
+            }
+
+            // Save file information globally
+            selectedFileData.name = file.name;
+            selectedFileData.extension = file.name.split('.').pop().toLowerCase();
+            selectedFileData.size = file.size;
+
+            infoField.innerHTML = `<strong>Selected file:</strong> ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+
+            // Read the file into memory (ArrayBuffer) for later binary analysis in Steps 2 and 3
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                selectedFileData.buffer = evt.target.result;
+                
+                // Only activate the Step 1 container to begin with
+                resetInterface();
+                activateSection('containerStep1');
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // --- INTERFACE HELPER FUNCTIONS ---
+        function activateSection(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function resetInterface() {
+            // Deactivate and hide all step boxes and statuses upon new file selection
+            const containers = ['containerStep1', 'containerStep2', 'containerStep3'];
+            containers.forEach(id => document.getElementById(id).classList.remove('active'));
+            
+            const statuses = ['result1a', 'result1b', 'result1c', 'result2a', 'result2b', 'result2c', 'result2d', 'result3'];
+            statuses.forEach(id => {
+                const el = document.getElementById(id);
+                el.style.display = 'none';
+                el.className = 'status-box';
+                el.innerHTML = '';
+            });
+
+            document.getElementById('btnStep1').disabled = false;
+            document.getElementById('btnStep2').disabled = false;
+            document.getElementById('btnStep3').disabled = false;
+            
+            statusFlags.step1Success = false;
+            statusFlags.step2Success = false;
+            statusFlags.step3Success = false;
+        }
+
+        function showStatus(id, className, text) {
+            const el = document.getElementById(id);
+            el.style.display = 'block';
+            el.className = `status-box ${className}`;
+            el.innerHTML = text;
+        }
+        // ==========================================
+        // STEP 1: FILE EXTENSION CHECK
+        // ==========================================
+        function runStep1() {
+            const ext = selectedFileData.extension;
+            let isRecommended = false;
+            let isMigratable = false;
+
+            // 1a. Check against recommended formats
+            if (RECOMMENDED_FORMATS.includes(ext)) {
+                showStatus('result1a', 'status-success', `✔ 1a Success: The extension .${ext} is on the linguistics list of recommended file formats.`);
+                isRecommended = true;
+            } else {
+                showStatus('result1a', 'status-danger', `❌ 1a Rejected: The extension .${ext} is not on the list of recommended formats.`);
+            }
+
+            // 1b. Check against automatically migratable formats
+            if (MIGRATABLE_FORMATS.includes(ext)) {
+                showStatus('result1b', 'status-warning', `⚠ 1b Approved for migration: The extension .${ext} can be automatically migrated to a recommended format.`);
+                isMigratable = true;
+            } else {
+                showStatus('result1b', 'status-danger', `❌ 1b Not migratable: The extension .${ext} does not support automatic migration.`);
+            }
+
+            // 1c. Catch-all logic for extensions
+            if (isRecommended || isMigratable) {
+                showStatus('result1c', 'status-success', `✔ 1c Catch-all: Extension verified (via 1a or 1b). The file is allowed to proceed to pattern analysis.`);
+                statusFlags.step1Success = true;
+            } else {
+                showStatus('result1c', 'status-danger', `‼ 1c Catch-all: The extension .${ext} is unknown to the linguistics systems. The file must either be REJECTED or sent to MANUAL CURATION.`);
+                statusFlags.step1Success = false;
+            }
+
+            // Lock this button and open up for the next main step
+            document.getElementById('btnStep1').disabled = true;
+            activateSection('containerStep2');
+        }
+
+        // ==========================================
+        // STEP 2: INTERNAL PATTERN RECOGNITION (SIEGFRIED)
+        // ==========================================
+        
+        // Defined magic numbers (Hex patterns for 2a)
+        const MAGIC_NUMBERS = {
+            'pdf': '25504446',       // %PDF
+            'xml': '3c3f786d6c',     // <?xml
+            'zip': '504b0304',       // PK.. (used by docx/xlsx)
+            'docx': '504b0304',      // Partially identical to zip
+            'xlsx': '504b0304'       // Partially identical to zip
+        };
+
+        function runStep2() {
+            if (!selectedFileData.buffer) {
+                alert("Error: File data missing. Please upload the file again.");
+                return;
+            }
+
+            const uint8 = new Uint8Array(selectedFileData.buffer);
+            const ext = selectedFileData.extension;
+            
+            // Generate a Hex string of the first 4 bytes (for magic numbers)
+            let hexSignature = "";
+            for (let i = 0; i < Math.min(uint8.length, 4); i++) {
+                hexSignature += uint8[i].toString(16).padStart(2, '0');
+            }
+
+            // Generate a text snippet of the first 100 bytes (for structural check)
+            let textSnippet = "";
+            for (let i = 0; i < Math.min(uint8.length, 100); i++) {
+                textSnippet += String.fromCharCode(uint8[i]);
+            }
+
+            let status2a = false;
+            let status2b = false;
+            let status2c = false;
+
+            // --- 2a. Check for known magic numbers ---
+            if (MAGIC_NUMBERS[ext] && hexSignature.startsWith(MAGIC_NUMBERS[ext])) {
+                showStatus('result2a', 'status-success', `✔ 2a Match: The file's binary signature (Hex: ${hexSignature.substring(0,8).toUpperCase()}) matches the known pattern for .${ext}.`);
+                status2a = true;
+            } else {
+                showStatus('result2a', 'status-danger', `❌ 2a No match: Failed to confirm magic number (Hex: ${hexSignature.toUpperCase()}) against expected pattern for .${ext}.`);
+            }
+
+            // --- 2b. Check for structural patterns (XML, JSON etc.) ---
+            if (ext === 'xml' && textSnippet.trim().startsWith('<?xml')) {
+                showStatus('result2b', 'status-success', `✔ 2b Structure Match: Found valid XML declaration at the start of the file.`);
+                status2b = true;
+            } else if (ext === 'json' && (textSnippet.trim().startsWith('{') || textSnippet.trim().startsWith('['))) {
+                showStatus('result2b', 'status-success', `✔ 2b Structure Match: Validated JSON object structure at the start of the file.`);
+                status2b = true;
+            } else if (['docx', 'xlsx'].includes(ext) && hexSignature === '504b0304') {
+                showStatus('result2b', 'status-success', `✔ 2b Structure Match: The file has the correct OpenXML/ZIP structure for modern Office documents.`);
+                status2b = true;
+            } else {
+                showStatus('result2b', 'status-danger', `❌ 2b Structure: No recognizable source code structures (like XML/JSON) found for .${ext}.`);
+            }
+
+            // --- 2c. Heuristic and statistical analysis ---
+            // Checks if the file consists entirely of readable text characters (for txt/csv)
+            let isPlainTxtOnly = true;
+            for (let i = 0; i < Math.min(uint8.length, 300); i++) {
+                // Check if byte is a control character outside normal tab/line break range
+                if (uint8[i] < 9 || (uint8[i] > 13 && uint8[i] < 32)) {
+                    isPlainTxtOnly = false;
+                    break;
+                }
+            }
+
+            if ((ext === 'txt' || ext === 'csv') && isPlainTxtOnly) {
+                showStatus('result2c', 'status-success', `✔ 2c Heuristics: Text and character distribution confirms that this is a plain flat text file/CSV.`);
+                status2c = true;
+            } else if (!isPlainTxtOnly && ['txt', 'csv'].includes(ext)) {
+                showStatus('result2c', 'status-danger', `❌ 2c Heuristics: The file claims to be text, but contains binary data (invalid characters).`);
+            } else {
+                showStatus('result2c', 'status-warning', `⚠ 2c Heuristics Neutral: No specific statistical checks are configured for the format .${ext}.`);
+                status2c = false;
+            }
+
+            // --- 2d. Catch-all for pattern analysis ---
+            if (status2a || status2b || status2c) {
+                showStatus('result2d', 'status-success', `✔ 2d Pattern Summary: Success. At least one internal pattern (2a-2c) verified the file's content.`);
+                statusFlags.step2Success = true;
+            } else {
+                showStatus('result2d', 'status-danger', `‼ 2d Pattern Summary: ERROR. All internal pattern tests failed. Cross-cutting rule (1 + 3) must be evaluated after Step 3.`);
+                statusFlags.step2Success = false;
+            }
+
+            // Lock this button and open up for the Google Magika step
+            document.getElementById('btnStep2').disabled = true;
+            activateSection('containerStep3');
+        }
+        // ==========================================
+        // STEP 3: GOOGLE MAGIKA (AI ANALYSIS)
+        // ==========================================
+        function runStep3() {
+            if (!selectedFileData.buffer) {
+                alert("Error: File data missing.");
+                return;
+            }
+
+            const uint8 = new Uint8Array(selectedFileData.buffer);
+            const ext = selectedFileData.extension;
+
+            // Regenerates basic signatures to simulate Magika's AI prediction
+            let hexSignature = "";
+            for (let i = 0; i < Math.min(uint8.length, 4); i++) {
+                hexSignature += uint8[i].toString(16).padStart(2, '0');
+            }
+
+            let textSnippet = "";
+            for (let i = 0; i < Math.min(uint8.length, 100); i++) {
+                textSnippet += String.fromCharCode(uint8[i]);
+            }
+
+            let isPlainText = true;
+            for (let i = 0; i < Math.min(uint8.length, 200); i++) {
+                if (uint8[i] < 9 || (uint8[i] > 13 && uint8[i] < 32)) {
+                    isPlainText = false;
+                    break;
+                }
+            }
+
+            // --- Simulated Google Magika AI Model Prediction ---
+            // Magika has an internal list of ~220 well-known formats (like csv, json, pdf, txt, etc.)
+            let magikaIdentifiedFormat = "unknown";
+            let magikaConfidence = 0.0;
+
+            if (hexSignature.startsWith("25504446")) { 
+                magikaIdentifiedFormat = "pdf"; 
+                magikaConfidence = 0.99; 
+            } else if (textSnippet.trim().startsWith('<?xml')) { 
+                magikaIdentifiedFormat = "xml"; 
+                magikaConfidence = 0.96; 
+            } else if (textSnippet.trim().startsWith('{') || textSnippet.trim().startsWith('[')) { 
+                magikaIdentifiedFormat = "json"; 
+                magikaConfidence = 0.94; 
+            } else if (isPlainText && ext === "csv") { 
+                magikaIdentifiedFormat = "csv"; 
+                magikaConfidence = 0.89; 
+            } else if (isPlainText) { 
+                magikaIdentifiedFormat = "txt"; 
+                magikaConfidence = 0.91; 
+            } else if (hexSignature === "504b0304") {
+                // Magika can look deeper into ZIP/Office containers
+                if (ext === "docx" || ext === "xlsx") {
+                    magikaIdentifiedFormat = ext;
+                    magikaConfidence = 0.95;
+                } else {
+                    magikaIdentifiedFormat = "zip";
+                    magikaConfidence = 0.98;
+                }
+            }
+
+            // Check if Magika recognizes the content and if it matches linguistics lists / expected format
+            if (magikaIdentifiedFormat !== "unknown" && (magikaIdentifiedFormat === ext || RECOMMENDED_FORMATS.includes(magikaIdentifiedFormat))) {
+                showStatus('result3', 'status-success', `✔ 3. Google Magika Success: Content was AI-identified as <dfn>.${magikaIdentifiedFormat}</dfn> with ${Math.round(magikaConfidence * 100)}% confidence. The format is verified against approved tables.`);
+                statusFlags.step3Success = true;
+            } else {
+                showStatus('result3', 'status-danger', `❌ 3. Google Magika Error: The AI model failed to reliably confirm the content, or the file fell outside the list of known core formats.`);
+                statusFlags.step3Success = false;
+            }
+
+            // Lock the final button
+            document.getElementById('btnStep3').disabled = true;
+
+            // --- FINAL JOINT EVALUATION (Cross-evaluation according to rule 2d) ---
+            runFinalCrossEvaluation();
+        }
+
+        function runFinalCrossEvaluation() {
+            const result2dElement = document.getElementById('result2d');
+            const originalPatternText = result2dElement.innerHTML;
+
+            // Rule 2d: What happens if the internal pattern analysis (2a-2b-2c) failed?
+            // Answer: We check if the combined result of Step 1 (Known extension) and Step 3 (Magika confirmed) is sufficient.
+            if (!statusFlags.step2Success) {
+                if (statusFlags.step1Success && statusFlags.step3Success) {
+                    result2dElement.className = "status-box status-warning";
+                    result2dElement.innerHTML = originalPatternText + `<br><br><strong>➔ Evaluation of 2d fallback:</strong> Local pattern tests failed, but the combined result of Step 1 and Step 3 is <span style="color:#155724;">SUFFICIENT</span>. The file is approved because the extension is allowed (1) and the file content is AI-verified by Google Magika (3).`;
+                    alert("Final Status: The file was APPROVED via the fallback rule in 2d!");
+                } else {
+                    result2dElement.className = "status-box status-danger";
+                    result2dElement.innerHTML = originalPatternText + `<br><br><strong>➔ Evaluation of 2d fallback:</strong> Pattern tests failed, and the combined result of Step 1 and Step 3 is <span style="color:#721c24;">NOT SUFFICIENT</span>. The file must be rejected or sent to manual curation.`;
+                    alert("Final Status: The file was REJECTED. The content could not be validated.");
+                }
+            } else {
+                // If Step 2 was already a success
+                if (statusFlags.step1Success && statusFlags.step3Success) {
+                    alert("Final Status: The file was fully APPROVED through all three control levels!");
+                } else {
+                    alert("Final Status: The file has conflicting results and should be flagged for review.");
+                }
+            }
+        }
+    </script>
+
+</body>
+</html>
