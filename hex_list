@@ -1,0 +1,58 @@
+// Defined magic numbers (Hex patterns)
+        const MAGIC_NUMBERS = {
+            // Original formats
+            'pdf': '25504446',                 // %PDF
+            'xml': '3c3f786d6c',               // <?xml
+            'zip': '504b0304',                 // PK.. (Standard archive / docx / xlsx)
+            'docx': '504b0304',                // Identical to zip (Office Open XML)
+            'xlsx': '504b0304',                // Identical to zip (Office Open XML)
+
+            // Additional compressed archives
+            'zip_empty': '504b0506',           // PK.. (Empty ZIP archive)
+            'zip_spanned': '504b0708',         // PK.. (Spanned/split ZIP archive)
+            'rar_v4': '526172211a0700',        // Rar! (Version 4.x and older)
+            'rar_v5': '526172211a070100',      // Rar! (Version 5.0+)
+            '7z': '377abcaf271c',              // 7z¼¯'
+            'gz': '1f8b08',                    // Gzip compression
+            'bz2': '425a68',                   // BZh (Bzip2)
+            'tar_z': '1f9d',                   // Compressed TAR archive
+
+            // Legacy document formats
+            'rtf': '7b5c727466',               // {\rtf
+            'doc': 'd0cf11e0a1b11ae1',         // OLE2 (Legacy Word / XLS / PPT)
+            'xls': 'd0cf11e0a1b11ae1',         // OLE2 (Shares signature with .doc)
+            'ppt': 'd0cf11e0a1b11ae1',         // OLE2 (Shares signature with .doc)
+            'html': '3c21444f4354595045',     // <!DOCTYPE
+
+            // Images and graphics
+            'png': '89504e470d0a1a0a',         // .PNG....
+            'jpg': 'ffd8ffe0',                 // JFIF standard JPEG
+            'jpeg_exif': 'ffd8ffe1',           // EXIF standard JPEG
+            'bmp': '424d',                     // BM (Windows Bitmap)
+            'tiff_le': '49492a00',             // II*. (Little Endian)
+            'tiff_be': '4d4d002a',             // MM.* (Big Endian)
+            'psd': '38425053',                 // 8BPS (Adobe Photoshop)
+
+            // Audio and video
+            'mp3_id3': '494433',               // ID3 (MP3 with metadata tag)
+            'mp3_raw': 'fffb',                 // Raw MP3 stream (Can also be fff3/fff2)
+            'flv': '464c5601',                 // FLV. (Flash Video)
+            'ogg': '4f676753',                 // OggS (Ogg Vorbis/Theora)
+            'flac': '664c6143',                // fLaC (Free Lossless Audio Codec)
+            'mkv': '1a45dfa3',                 // EBML (Matroska video / WebM)
+
+            // Executables and system files
+            'exe': '4d5a',                     // MZ (Windows Executable / DLL)
+            'dll': '4d5a',                     // MZ (Shares signature with .exe)
+            'elf': '7f454c46',                 // .ELF (Linux executable)
+            'class': 'cafebabe',               // Java Class file
+            'swf': '435753',                   // CWS (Flash animation, can also be 465753)
+            'dmp': '4d444d50',                 // MDMP (Windows Crash Dump)
+            'sh': '2321',                      // #! (Shebang for Linux script)
+
+            // Databases and disk images
+            'sqlite': '53514c69746520666f726d6174203300', // SQLite format 3.
+            'pcapng': '0a0d0d0a',              // Wireshark Packet Capture Next Gen
+            'vmdk': '4b444d55',                // KDMU (VMware Virtual Disk)
+            'vhd': '636f6e6563746978'          // conectix (Microsoft Virtual Hard Disk)
+        };
