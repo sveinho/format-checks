@@ -1,0 +1,101 @@
+// --- Forbedret heuristisk og statistisk analyse ---
+let detectedFormat = "unknown_binary";
+let isPlainTxtOnly = true;
+
+// 1. Sjekk for falske positiver (Sikrere tekst-validering)
+if (uint8.length === 0) {
+    isPlainTxtOnly = false;
+} else {
+    let controlCharCount = 0;
+    const sampleSize = Math.min(uint8.length, 512); // Økt til 512 bytes for bedre statistikk
+
+    for (let i = 0; i < sampleSize; i++) {
+        const byte = uint8[i];
+        
+        // Null-byte betyr nesten garantert en binærfil (eller UTF-16/32 som krever annen håndtering)
+        if (byte === 0) {
+            isPlainTxtOnly = false;
+            break;
+        }
+        
+        // Sjekk tradisjonelle kontrolltegn
+        if (byte < 9 || (byte > 13 && byte < 32)) {
+            isPlainTxtOnly = false;
+            break;
+        }
+
+        // Statistisk sjekk for falske positiver: 
+        // Hvis filen inneholder for mange uvanlige ikke-ASCII tegn (f.eks. i krypterte filer)
+        if (byte > 127) {
+            controlCharCount++;
+        }
+    }
+
+    // Hvis mer enn 30% av filen består av uvanlige binære byte-verdier, er det neppe ren tekst
+    if (controlCharCount / sampleSize > 0.3) {
+        isPlainTxtOnly = false;
+    }
+}
+
+// 2. Utvidelse: Skille mellom spesifikke tekstformater
+if (isPlainTxtOnly) {
+    detectedFormat = "text/plain"; // Standard fallback hvis ingen andre treffer
+
+    // Gjør om utvalget til en tekststreng for mønstergjenkjenning (Trimmer bort BOM hvis den finnes)
+    const textDecoder = new TextDecoder("utf-8");
+    const textSample = textDecoder.decode(uint8.slice(0, 1024)).trim();
+
+    if (textSample.length > 0) {
+        // --- JSON-sjekk ---
+        // Sjekker om den starter og slutter med JSON-strukturer
+        if ((textSample.startsWith("{") && textSample.includes("}")) || 
+            (textSample.startsWith("[") && textSample.includes("]"))) {
+            try {
+                // Validerer om det faktisk er JSON (hvis utvalget er kort nok, eller ved å sjekke starten)
+                // For store filer sjekker vi bare strukturen grovt for å unngå krasj
+                if (textSample.length < 500) {
+                    JSON.parse(textSample);
+                    detectedFormat = "application/json";
+                } else if (/^[\{\[\s]*["\d]/.test(textSample)) {
+                    detectedFormat = "application/json";
+                }
+            } catch (e) {
+                // Ikke gyldig JSON, fortsetter til neste sjekk
+            }
+        } 
+        
+        // --- XML / HTML-sjekk ---
+        else if (textSample.startsWith("<")) {
+            if (textSample.toLowerCase().startsWith("<!doctype html") || textSample.toLowerCase().includes("<html")) {
+                detectedFormat = "text/html";
+            } else if (textSample.startsWith("<?xml") || /<[a-zA-Z_:][\w:.-]*>/.test(textSample)) {
+                detectedFormat = "application/xml";
+            }
+        } 
+        
+        // --- CSV / TSV-sjekk (Tabulardata) ---
+        else {
+            // Teller forekomster av vanlige separatorer i de første linjene
+            const lines = textSample.split(/\r?\n/).slice(0, 3).filter(l => l.trim().length > 0);
+            if (lines.length > 0) {
+                const commas = (lines[0].match(/,/g) || []).length;
+                const semicolons = (lines[0].match(/;/g) || []).length;
+                const tabs = (lines[0].match(/\t/g) || []).length;
+
+                // Sjekk om rekkene har konsistent antall separatorer (en indikator på CSV)
+                const isConsistent = lines.every(line => {
+                    if (commas > 0 && (line.match(/,/g) || []).length === commas) return true;
+                    if (semicolons > 0 && (line.match(/;/g) || []).length === semicolons) return true;
+                    if (tabs > 0 && (line.match(/\t/g) || []).length === tabs) return true;
+                    return false;
+                });
+
+                if (isConsistent) {
+                    if (commas > semicolons && commas > tabs) detectedFormat = "text/csv";
+                    else if (semicolons > commas && semicolons > tabs) detectedFormat = "text/csv"; // Vanlig i Europeisk Excel
+                    else if (tabs > commas && tabs > semicolons) detectedFormat = "text/tab-separated-values";
+                }
+            }
+        }
+    }
+}
