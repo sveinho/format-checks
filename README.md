@@ -1,1 +1,1 @@
-this repo contains a simulation on step by step file format identification
+this repo contains a simulation on step by step file format identification, all done in browser client side with javascript and html. This means that if you download this html file, it kan be used locally, on a web server etc. 
