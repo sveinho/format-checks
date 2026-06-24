@@ -85,7 +85,7 @@
 
     <!-- STEP 1: EXTENSION -->
     <div id="containerStep1" class="step-container">
-        <h2>Step 1: File Extension Check</h2>
+        <h2>Step 1: File Extension List Checking: Recommended, Migratable or Unknown?</h2>
         <p>Evaluates the file extension against approved discipline lists.</p>
         
         <div class="sub-step">
@@ -97,7 +97,7 @@
             <div id="result1b" class="status-box"></div>
         </div>
         <div class="sub-step">
-            <span style="font-weight: 600;">1c. Catch-all for unknown extensions (Allow, reject, or manual)</span>
+            <span style="font-weight: 600;">1c. Catch-all for unknown extensions (Allow, reject, or manual curation)</span>
             <div id="result1c" class="status-box"></div>
         </div>
         
@@ -105,19 +105,19 @@
     </div>
     <!-- STEP 2: PATTERN ANALYSIS -->
     <div id="containerStep2" class="step-container">
-        <h2>Step 2: Internal Pattern Recognition (Siegfried Level)</h2>
-        <p>Analyzes the file's actual binary and structural composition.</p>
+        <h2>Step 2: Internal Pattern Recognition ("Siegfried & Friends")</h2>
+        <p>Analyzes the file's actual hex, binary and structural composition.</p>
         
         <div class="sub-step">
-            <span style="font-weight: 600;">2a. Check for known magic numbers</span>
+            <span style="font-weight: 600;">2a. Check (mostly binary formats) for known magic numbers (Siegfried)</span>
             <div id="result2a" class="status-box"></div>
         </div>
         <div class="sub-step">
-            <span style="font-weight: 600;">2b. Check for structural patterns (XML, JSON, tags)</span>
+            <span style="font-weight: 600;">2b. Check plain text for known structural patterns (XML, JSON, tags)</span>
             <div id="result2b" class="status-box"></div>
         </div>
         <div class="sub-step">
-            <span style="font-weight: 600;">2c. Heuristic and statistical analysis of other properties</span>
+            <span style="font-weight: 600;">2c. Heuristic / statistical analysis of other properties (mostly plain text)</span>
             <div id="result2c" class="status-box"></div>
         </div>
         <div class="sub-step">
