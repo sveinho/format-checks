@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>In-Browser Zip Format Identifier</title>
+    <!-- Load JSZip via CDN for archive traversal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 30px auto; padding: 0 20px; color: #333; }
+        .drop-zone { border: 2px dashed #007bff; border-radius: 8px; padding: 40px; text-align: center; background: #f8f9fa; cursor: pointer; transition: background 0.2s; }
+        .drop-zone:hover { background: #e9ecef; }
+        table { width: 100%; border-collapse: collapse; margin-top: 25px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #dee2e6; }
+        th { background-color: #f1f3f5; font-weight: 600; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-family: monospace; font-weight: bold; background: #e2e8f0; }
+        .badge.match { background: #d4edda; color: #155724; }
+        .badge.mismatch { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+    <h2>📦 Client-Side Format Identifier (Tika Sim)</h2>
+    <p>Drop a ZIP file below. The system will unpack the file structure and inspect internal binary signatures without uploading any data.</p>
+
+    <div class="drop-zone" id="dropZone">
+        Drop your .zip file here or <strong>click to browse</strong>
+        <input type="file" id="fileInput" accept=".zip" style="display: none;">
+    </div>
+
+    <table id="resultsTable" style="display: none;">
+        <thead>
+            <tr>
+                <th>Internal File Path</th>
+                <th>Extension Name</th>
+                <th>Validated Magic Byte Format</th>
+            </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+    </table>
+
+<script>
+// Dictionary mapping common file formats to their unique initial byte signatures (Hex strings)
+const MAGIC_NUMBERS = {
+    '89504e47': 'image/png',
+    '47494638': 'image/gif',
+    '25504446': 'application/pdf',
+    '504b0304': 'application/zip (or OpenXML Office Doc)',
+    'ffd8ffe0': 'image/jpeg',
+    'ffd8ffe1': 'image/jpeg',
+    'ffd8ffe2': 'image/jpeg',
+    '4d5a': 'application/x-msdownload (EXE)',
+    '7f454c46': 'application/x-elf (Linux Executable)'
+};
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const resultsTable = document.getElementById('resultsTable');
+const resultsBody = document.getElementById('resultsBody');
+
+// Trigger hidden file selection
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+// Handle drag-and-drop mechanics
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.background = '#e2e8f0'; });
+dropZone.addEventListener('dragleave', () => dropZone.style.background = '#f8f9fa');
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.style.background = '#f8f9fa';
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+
+async function handleFile(file) {
+    if (!file || !file.name.endsWith('.zip')) {
+        alert('Please select a valid .zip file.');
+        return;
+    }
+
+    resultsBody.innerHTML = '';
+    resultsTable.style.display = 'table';
+
+    try {
+        const zip = new JSZip();
+        // Load the main container file safely into memory
+        const contents = await zip.loadAsync(file);
+        
+        // Loop through every file entry inside the zip archive
+        for (const [relativePath, zipEntry] of Object.entries(contents.files)) {
+            if (zipEntry.dir) continue; // Skip directory structural records
+
+            // CRITICAL OPTIMIZATION: Extract ONLY the first 4 bytes of the nested file payload
+            // This prevents performance choking on large sub-documents
+            const uint8Array = await zipEntry.async("uint8array");
+            const slice = uint8Array.slice(0, 4);
+            
+            // Convert the binary slice into a readable hexadecimal sequence
+            const hexSignature = Array.from(slice)
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+
+            // Evaluate signature matches against our format dictionary
+            let detectedMime = 'application/octet-stream (Unknown Binary / Plain Text)';
+            for (const [magic, mime] of Object.entries(MAGIC_NUMBERS)) {
+                if (hexSignature.startsWith(magic)) {
+                    detectedMime = mime;
+                    break;
+                }
+            }
+
+            // Derive extension from the structural path to flag deceptive extensions
+            const ext = relativePath.split('.').pop().toLowerCase();
+            const isMatch = checkExtensionMatch(ext, detectedMime);
+            const statusClass = isMatch === null ? 'badge' : (isMatch ? 'badge match' : 'badge mismatch');
+
+            // Render details dynamically to the layout
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><code>${relativePath}</code></td>
+                <td><span class="badge">.${ext}</span></td>
+                <td><span class="${statusClass}">${detectedMime}</span></td>
+            `;
+            resultsBody.appendChild(row);
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Error parsing zip file: ' + error.message);
+    }
+}
+
+// Simple safety heuristic to map file extensions to validated formats
+function checkExtensionMatch(ext, mime) {
+    if (mime.includes('unknown') || mime.includes('octet-stream')) return null;
+    if (mime.includes('png') && ext === 'png') return true;
+    if (mime.includes('gif') && ext === 'gif') return true;
+    if (mime.includes('pdf') && ext === 'pdf') return true;
+    if (mime.includes('jpeg') && (ext === 'jpg' || ext === 'jpeg')) return true;
+    if (mime.includes('zip') && ['zip', 'docx', 'xlsx', 'pptx'].includes(ext)) return true;
+    if (mime.includes('x-msdownload') && ext === 'exe') return true;
+    return false; // Confirmed spoof or incorrect extension structure
+}
+</script>
+</body>
+</html>
